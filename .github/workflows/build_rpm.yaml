@@ -27,7 +27,7 @@ on:
       rust-version:
         description: "Version of Rust to compile Alumet with"
         type: string
-        default: '1.85.1'
+        default: '1.88.0'
 
 jobs:
   rpm-packaging:
@@ -73,12 +73,35 @@ jobs:
 
       - name: Install Fedora dependencies
         if: contains(matrix.os.base-image, 'fedora')
-        run: sudo dnf install --setopt=install_weak_deps=False -y rpm-build openssl-devel gcc git
+        run: |
+          sudo dnf install --setopt=install_weak_deps=False -y rpm-build gcc git
+
+          source /etc/os-release
+
+          echo "Detected: ID=$ID VERSION_ID=$VERSION_ID"
+          # Fix: install dnf plugins so config-manager works
+          sudo dnf install -y dnf-plugins-core  
+
+          # Enable CRB or Powertools based on version
+          if [[ "$ID" != "fedora" ]]; then
+            ver_major="${VERSION_ID%%.*}"
+            if [[ "$ver_major" == "9" ]]; then
+              sudo dnf config-manager --set-enabled crb
+            elif [[ "$ver_major" == "8" ]]; then
+              sudo dnf config-manager --set-enabled powertools
+            fi
+            # Install EPEL only on RHEL-like systems
+            sudo dnf install -y epel-release
+            sudo dnf install --setopt=install_weak_deps=False -y epel-release cross-gcc cross-binutils
+          else
+            sudo dnf config-manager --set-enabled crb || true
+            sudo dnf install --setopt=install_weak_deps=False -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          fi
 
       - name: Install non-Fedora dependencies
         if: ${{ ! contains(matrix.os.base-image, 'fedora') }}
         run: |
-          yum install -y --allowerasing unzip rpm-build openssl-devel curl gcc git
+          yum install -y --allowerasing unzip rpm-build curl gcc git
 
       - name: Setup for alumet sources
         run: mkdir -p alumet
@@ -86,7 +109,7 @@ jobs:
       - name: Checkout alumet repo
         uses: actions/checkout@v4
         with:
-          repository: alumet-dev/alumet
+          repository: guigomcha/alumet
           path: "alumet"
           ref: '${{ inputs.tag }}'
           fetch-depth: 1
@@ -98,7 +121,13 @@ jobs:
           . "$HOME/.cargo/env"
           bin=$(pwd)/bin
           mkdir "$bin"
-          CARGO_TARGET_DIR="$bin" ALUMET_AGENT_RELEASE=true RUSTFLAGS="-Awarnings" cargo build --release -p alumet-agent
+          args=""
+          if [[ ${{ inputs.arch }} == "aarch64" ]]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc && export CC=aarch64-linux-gnu-gcc
+            rustup target add aarch64-unknown-linux-musl
+            args="--target=aarch64-unknown-linux-musl"
+          fi
+          CARGO_TARGET_DIR="$bin" ALUMET_AGENT_RELEASE=true RUSTFLAGS="-Awarnings" cargo build --release -p alumet-agent $args
           cp "$bin/release/alumet-agent" ../packaging/rpm/SOURCES/alumet-agent
 
       - name: Build RPM package

@@ -83,6 +83,7 @@ jobs:
           context: ${{ matrix.os.path }}
           push: false
           file: ${{ matrix.os.path }}/Dockerfile
+          platforms: linux/${{ env.ARCH }}
           build-args: |
             ALUMET_VERSION=${{ inputs.version }}
             BUILDER_IMAGE=${{ matrix.os.builder-image }}

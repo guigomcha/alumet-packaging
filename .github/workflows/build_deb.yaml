@@ -28,7 +28,7 @@ on:
       rust-version:
         description: "Version of Rust to compile Alumet with"
         type: string
-        default: '1.85.1'
+        default: '1.88.0'
 
 jobs:
   deb-packaging:
@@ -46,6 +46,7 @@ jobs:
           ]
     env:
       pkg_name: alumet-agent
+      ARCH: ${{ (inputs.arch == 'x86_64' ) && 'amd64' || inputs.arch }}
 
     container:
       image: ${{ matrix.os }}
@@ -81,8 +82,8 @@ jobs:
 
       - name: Install dependencies
         shell: bash
-        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl build-essential devscripts debhelper libssl-dev pkg-config
-
+        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl build-essential devscripts debhelper libssl-dev pkg-config gcc-aarch64-linux-gnu musl musl-tools musl-dev
+        # llvm-dev libclang-dev musl-dev musl-tools
       - name: Install Rust
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs  | sh -s -- -y --profile minimal --default-toolchain ${{ inputs.rust-version }}
@@ -93,7 +94,7 @@ jobs:
       - name: Checkout alumet repo
         uses: actions/checkout@v4
         with:
-          repository: alumet-dev/alumet
+          repository: guigomcha/alumet
           path: "alumet"
           ref: "${{ inputs.tag }}"
           fetch-depth: 1
@@ -105,7 +106,14 @@ jobs:
           . "$HOME/.cargo/env"
           bin=$(pwd)/bin
           mkdir "$bin"
-          CARGO_TARGET_DIR="$bin" ALUMET_AGENT_RELEASE=true RUSTFLAGS="-Awarnings" cargo build --release -p alumet-agent
+          args=""
+          if [[ ${{ inputs.arch }} == "aarch64" ]]; then
+            rustup target add aarch64-unknown-linux-musl
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc
+            export CC=aarch64-linux-gnu-gcc
+            args="--target=aarch64-unknown-linux-musl"
+          fi
+          CARGO_TARGET_DIR="$bin" ALUMET_AGENT_RELEASE=true cargo build --release -p alumet-agent $args
           cp "$bin/release/alumet-agent" ../packaging/deb/
 
       - name: Build debian package
@@ -116,10 +124,10 @@ jobs:
       - name: Define final package file name
         id: define_package_filename
         run: |
-          echo "PACKAGE_FILENAME=${{ env.pkg_name }}_${{ env.PKG_VERSION }}-${{ inputs.revision }}_${{ inputs.arch }}_${{ env.OS_NAME }}_${{ env.OS_VERSION }}.deb" >> $GITHUB_OUTPUT
+          echo "PACKAGE_FILENAME=${{ env.pkg_name }}_${{ env.PKG_VERSION }}-${{ inputs.revision }}_${{ env.ARCH }}_${{ env.OS_NAME }}_${{ env.OS_VERSION }}.deb" >> $GITHUB_OUTPUT
 
       - name: Rename package file
-        run: mv ${{ env.pkg_name }}_${{ env.PKG_VERSION }}-${{ inputs.revision }}_${{ inputs.arch }}.deb ${{ steps.define_package_filename.outputs.PACKAGE_FILENAME }}
+        run: mv ${{ env.pkg_name }}_${{ env.PKG_VERSION }}-${{ inputs.revision }}_${{ env.ARCH }}.deb ${{ steps.define_package_filename.outputs.PACKAGE_FILENAME }}
         working-directory: packaging
 
       # Run lintian with --fail-on error, but that option don't exist on old distribs.
