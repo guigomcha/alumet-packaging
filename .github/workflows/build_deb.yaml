@@ -71,7 +71,8 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: alumet-dev/packaging
+          repository: guigomcha/alumet-packaging
+          ref: 16-final-debug
           fetch-tags: true
           path: packaging
 
@@ -165,7 +166,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          repository: "alumet-dev/packaging"
+          repository: "guigomcha/alumet-packaging"
+          ref: 16-final-debug
           fetch-depth: 1
           path: "packaging"
 
