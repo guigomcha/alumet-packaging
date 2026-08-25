@@ -45,10 +45,6 @@ jobs:
           MATRIX='[]'
           MATRIX=$(jq -c '. += [
             {
-              "name":"11",
-              "base-image":"debian:11"
-            },
-            {
               "name":"12",
               "base-image":"debian:12"
             },
@@ -106,9 +102,10 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          repository: alumet-dev/packaging
+          repository: guigomcha/alumet-packaging
           fetch-tags: true
-          path: packaging
+          path: 'packaging'
+          branch: custom-build
 
       - name: Setup GITHUB_ENV
         run: |
@@ -129,7 +126,7 @@ jobs:
       - name: Checkout alumet repo
         uses: actions/checkout@v7
         with:
-          repository: alumet-dev/alumet
+          repository: guigomcha/alumet
           path: "alumet"
           ref: "${{ inputs.tag }}"
           fetch-depth: 1
@@ -197,9 +194,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          repository: "alumet-dev/packaging"
-          fetch-depth: 1
-          path: "packaging"
+          repository: guigomcha/alumet-packaging
+          fetch-tags: true
+          path: 'packaging'
+          branch: custom-build
 
       - name: Download DEB artifact
         id: download_deb

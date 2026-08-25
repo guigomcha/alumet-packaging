@@ -123,7 +123,8 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v7
         with:
-          repository: alumet-dev/packaging
+          repository: guigomcha/alumet-packaging
+          branch: custom-build
 
       - name: Define the dependency artifact pattern
         run: |
@@ -213,7 +214,8 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v7
         with:
-          repository: alumet-dev/packaging
+          repository: guigomcha/alumet-packaging
+          branch: custom-build
 
       - name: Create docker artifacts directory
         run: mkdir docker-artifacts
